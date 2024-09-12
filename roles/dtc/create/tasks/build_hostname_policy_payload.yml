@@ -21,20 +21,34 @@
 
 ---
 
-- name: Build Policy ID Query using Switch Serial Number
+- name: Get NDFC Fabric Default Switch using Switch Serial Number for {{ item }}
+  cisco.dcnm.dcnm_rest:
+    method: GET
+    path: "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/policies/switches/{{ item }}/SWITCH/SWITCH"
+  register: result
+
+- name: Filter Policy ID Query using template host_11_1
   ansible.builtin.set_fact:
-    query: "[?(@.serialNumber=='{{ item }}')]"
+    query: "[?(@.templateName==`host_11_1`)]"
   delegate_to: localhost
 
 - name: Get Hostname Policy for {{ item }} from NDFC Response
   ansible.builtin.set_fact:
-    policy: "{{ switch_policy_template_host | community.general.json_query(query) }}"
+    policy: "{{ result.response.DATA | community.general.json_query(query) }}"
   delegate_to: localhost
+
+- name: Display Policy
+  ansible.builtin.debug:
+    msg: "{{ policy }}"
 
 - name: Get Current Hostname from Policy for {{ item }} from NDFC Response
   ansible.builtin.set_fact:
-    ndfc_switch_hostname: "{{ policy[0].switchName }}"
+    ndfc_switch_hostname: "{{ policy[0].nvPairs.SWITCH_NAME }}"
   delegate_to: localhost
+
+- name: Display Hostname
+  ansible.builtin.debug:
+    msg: "{{ ndfc_switch_hostname }}"
 
 - name: Build Hostname Query using Switch Serial Number
   ansible.builtin.set_fact:
