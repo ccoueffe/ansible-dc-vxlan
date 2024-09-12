@@ -246,3 +246,8 @@
   NETFLOW_MONITOR_LIST: "{{ monitor_dict | tojson | replace('"', '\\"') }}"
 {% endif %}
 {% endif %}
+{# ------------------------------------------------------ #}
+{# New option in ND 3.2 #}
+{# ------------------------------------------------------ #}
+  ENABLE_SGT: False
+  ENABLE_PVLAN: False 
