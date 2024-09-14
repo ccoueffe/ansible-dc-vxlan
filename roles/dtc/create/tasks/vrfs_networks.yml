@@ -39,11 +39,7 @@
   register: manage_vrf_result
   when:
     - MD.vxlan.overlay_services.vrfs
-    # - changes_detected_vrfs
-  vars:
-    ansible_command_timeout: 7200
-    ansible_connect_timeout: 7200
-
+    - changes_detected_vrfs
 
 # --------------------------------------------------------------------
 # Manage Network Configuration on NDFC
@@ -56,7 +52,4 @@
   register: manage_network_result
   when:
     - MD.vxlan.overlay_services.networks
-    # - changes_detected_networks
-  vars:
-    ansible_command_timeout: 7200
-    ansible_connect_timeout: 7200
+    - changes_detected_networks

@@ -33,50 +33,38 @@
       ansible_connect_timeout: 3600
   when: MD_Extended.vxlan.topology.switches | length > 0
 
-- name: Set Switches List
-  ansible.builtin.set_fact:
-    md_switch_topology: "{{ MD.vxlan.topology.switches }}"
-  delegate_to: localhost
-
-- name: Create List of Switch Serial Numbers from Data Model
-  ansible.builtin.set_fact:
-    md_serial_numbers_list: "{{ md_switch_topology | map(attribute='serial_number') | list }}"
-  delegate_to: localhost
-
-# - name: Get NDFC Fabric Default Switch Policies with temmplate name host_11_1
-#   cisco.dcnm.dcnm_rest:
-#     method: GET
-#     path: "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/policies/pagination?filter=templateName==host_11_1&fabricName={{ MD.vxlan.global.name }}"
-#   register: result
-
-# - name: Set Policy List for template host_11_1
-#   ansible.builtin.set_fact:
-#     switch_policy_template_host: "{{ result.response.DATA }}"
-#   delegate_to: localhost
-
 - name: Default Policy Payload Variable
   ansible.builtin.set_fact:
     policy_payload: []
   delegate_to: localhost
 
-- name: Build Payload for NDFC Switch Hostname Policy Update
-  ansible.builtin.include_tasks: build_hostname_policy_payload.yml
-  loop: "{{ md_serial_numbers_list }}"
+- name: Build Switch Hostname Policy Payload from Data Model Update
+  cisco.nac_dc_vxlan.dtc.build_hostname_policy_payload:
+    model_data: "{{ MD.vxlan.topology.switches }}"
+    domain: local
+    userName: "{{ ansible_user }}"
+    userPasswd: "{{ ansible_password }}"
+    nd: "{{ ansible_host }}"
+  register: results
+  delegate_to: localhost
 
-# - name: Build Policy ID Query from NDFC Response
-#   ansible.builtin.set_fact:
-#     query: "response.DATA[?(@.templateName==`host_11_1`)].policyId"
-#   delegate_to: localhost
-
-- name: Create List of Switch Hostname Policy IDs from NDFC
+- name: Set Policy Payload
   ansible.builtin.set_fact:
-    policy_ids: "{{ policy_payload | map(attribute='policyId') | list | join('%2C') }}"
-  when: policy_payload | length > 0
+    policy_payload: "{{ results['policy_payload'] }}"
   delegate_to: localhost
 
 - name: Display Policy Payload
   ansible.builtin.debug:
-    msg: ""
+    msg: "{{ policy_payload }}"
+
+- name: Set Policy_ids
+  ansible.builtin.set_fact:
+    policy_ids: "{{ results['policy_ids'] }}"
+  delegate_to: localhost
+
+- name: Display Policy ids
+  ansible.builtin.debug:
+    msg: "{{ policy_ids }}"
 
 - name: Update Switch Hostname Policy in NDFC
   cisco.dcnm.dcnm_rest:
