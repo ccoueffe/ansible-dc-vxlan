@@ -2,6 +2,7 @@
 # This NDFC fabric config data structure is auto-generated
 # DO NOT EDIT MANUALLY
 #
+{% set ndfc_version_list = ndfc_version.split('.') %}
 {% set vxlan = MD_Extended.vxlan %}
 {% set global = vxlan.global %}
 {% set vpc = global.vpc %}
@@ -249,5 +250,12 @@
 {# ------------------------------------------------------ #}
 {# New option in ND 3.2 #}
 {# ------------------------------------------------------ #}
-  ENABLE_SGT: False
-  ENABLE_PVLAN: False 
+{% if ndfc_version_list[0] | int >= 12 and ndfc_version_list[1] | int >= 2 and ndfc_version_list[2] | int >= 2 and
+ndfc_version_list[3] | int >= 238 %}
+{% if global.stp is defined %}
+STP_ROOT_OPTION: {{ global.stp.root_option | default("unmanaged") }}
+STP_BRIDGE_PRIORITY: {{ global.stp.bridge_priority | default(0)}}
+{% endif %}
+ENABLE_SGT: False
+ENABLE_PVLAN: False
+{% endif %}

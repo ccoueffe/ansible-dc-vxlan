@@ -25,6 +25,16 @@
   when: MD is undefined
   delegate_to: localhost
 
+- name: Query NDFC Version
+  cisco.dcnm.dcnm_rest:
+    method: GET
+    path: /appcenter/cisco/ndfc/api/about/version
+  register: result_ndfc_version
+
+- name: Set NDFC Version
+  ansible.builtin.set_fact:
+    ndfc_version: "{{ result_ndfc_version.response.DATA.version }}"
+
 # --------------------------------------------------------------------
 # Remove all files from the previous run if run_map requires it
 # --------------------------------------------------------------------
