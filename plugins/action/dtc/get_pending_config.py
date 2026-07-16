@@ -43,6 +43,7 @@ class ActionModule(ActionBase):
         fabric_name = self._task.args.get("fabric_name")
         switches = self._task.args.get("switches", [])
         output_dir = self._task.args.get("output_dir", "")
+        deploy_mode = self._task.args.get("deploy_mode", "create")
 
         if not fabric_name:
             return {"failed": True, "msg": "fabric_name is required"}
@@ -55,8 +56,12 @@ class ActionModule(ActionBase):
         # Extract serial numbers from data model
         serial_list = []
         for sw in switches:
-            serial = sw.get("serial_number", "")
-            name = sw.get("name", sw.get("hostname", "unknown"))
+            if isinstance(sw, dict):
+                serial = sw.get("serial_number", "")
+                name = sw.get("name", sw.get("hostname", serial))
+            else:
+                serial = str(sw)
+                name = serial
             if serial:
                 serial_list.append({"serial": serial, "name": name})
 
@@ -68,6 +73,14 @@ class ActionModule(ActionBase):
             return {"changed": False, "msg": "No switches in data model"}
 
         step_start = monotonic()
+
+        # Prepare output directory with fabric/timestamp structure
+        save_dir = None
+        if output_dir:
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            save_dir = os.path.join(output_dir, fabric_name, timestamp)
+            os.makedirs(save_dir, exist_ok=True)
         display.display(
             f"\n{'─' * display.columns}\n"
             f"PENDING CONFIG [{fabric_name}] checking {len(serial_list)} switch(es)\n"
@@ -124,10 +137,9 @@ class ActionModule(ActionBase):
                     display.display("  └─", color="yellow")
 
             # Save to file
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                filename = f"pending_config_{name}_{serial}.txt"
-                filepath = os.path.join(output_dir, filename)
+            if output_dir and save_dir:
+                filename = f"{serial}_{deploy_mode}.txt"
+                filepath = os.path.join(save_dir, filename)
                 with open(filepath, "w") as f:
                     f.write("\n".join(lines))
                 display.v(f"  Saved pending config to {filepath}")

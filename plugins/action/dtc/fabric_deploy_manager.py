@@ -548,6 +548,7 @@ class ActionModule(ActionBase):
 
         # Operations supported include 'all', 'config_save', 'fabric_deploy', 'switch_deploy', 'check_sync'
         params['operation'] = self._task.args.get("operation")
+        params['deploy_mode'] = self._task.args.get("deploy_mode", "create")
 
         # Manage Deployment For Multisite (MSD or MCFG) Parent or Standalone Fabric
         # Acquire msite_data before parent deploy so manage_fabrics can
@@ -645,6 +646,49 @@ class ActionModule(ActionBase):
 
         if result.get('failed'):
             return None
+        return result
+
+
+    def _get_pending_config(self, params, serial_numbers):
+        """Invoke get_pending_config action plugin for deployable switches."""
+        fabric_name = params['fabric_name']
+        deploy_mode = params.get('deploy_mode', 'create')
+        plugin_name = "cisco.nac_dc_vxlan.dtc.get_pending_config"
+        plugin_args = {
+            "fabric_name": fabric_name,
+            "switches": serial_numbers,
+            "output_dir": "pending_config",
+            "deploy_mode": deploy_mode,
+        }
+
+        original_args = self._task.args
+        original_action = self._task.action
+        try:
+            self._task.args = plugin_args
+            self._task.action = plugin_name
+
+            action_plugin = self._shared_loader_obj.action_loader.get(
+                plugin_name,
+                task=self._task,
+                connection=self._connection,
+                play_context=self._play_context,
+                loader=self._loader,
+                templar=self._templar,
+                shared_loader_obj=self._shared_loader_obj,
+            )
+
+            if action_plugin is None:
+                display.warning(
+                    f"DEPLOY [{fabric_name}] "
+                    f"Action plugin '{plugin_name}' not found — skipping pending config"
+                )
+                return None
+
+            result = action_plugin.run(task_vars=params['task_vars'], tmp=params['tmp'])
+        finally:
+            self._task.args = original_args
+            self._task.action = original_action
+
         return result
 
     def _resolve_and_process_child_fabrics(self, results, params):
@@ -842,6 +886,7 @@ class ActionModule(ActionBase):
                     )
 
             if deployable:
+                self._get_pending_config(params, deployable)
                 fabric_manager.switch_deploy(deployable)
                 fabric_manager.fabric_check_sync()
 

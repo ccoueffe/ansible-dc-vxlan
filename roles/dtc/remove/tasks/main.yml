@@ -87,6 +87,8 @@
 - name: Deploy Remove Changes
   ansible.builtin.import_role:
     name: cisco.nac_dc_vxlan.dtc.deploy
+  vars:
+    deploy_mode: "remove"
   when: >
     (stage_remove is false|bool) and (change_flags.changes_detected_any) and
     (data_model_extended.vxlan.fabric.type in ['VXLAN_EVPN', 'eBGP_VXLAN', 'ISN', 'External'])
