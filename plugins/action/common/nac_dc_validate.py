@@ -37,11 +37,24 @@ else:
 
 try:
     import nac_validate.validator
-    from nac_validate.cli.defaults import DEFAULT_SCHEMA
+    try:
+        # nac-validate >= 2.0.0
+        from nac_validate.constants import DEFAULT_SCHEMA
+    except ImportError:
+        # nac-validate < 2.0.0
+        from nac_validate.cli.defaults import DEFAULT_SCHEMA
 except ImportError as imp_val_exc:
     NAC_VALIDATE_IMPORT_ERROR = imp_val_exc
 else:
     NAC_VALIDATE_IMPORT_ERROR = None
+
+try:
+    # nac-validate >= 2.0.0 raises ValidationError subclasses (each carrying .errors)
+    # from validate_syntax()/validate_semantics() instead of populating validator.errors
+    from nac_validate.exceptions import ValidationError as _NacValidationError
+except ImportError:
+    class _NacValidationError(Exception):
+        pass
 
 import os
 from ansible_collections.cisco.nac_dc_vxlan.plugins.plugin_utils.helper_functions import data_model_key_check
@@ -161,18 +174,22 @@ class ActionModule(ActionBase):
         syntax_validated = False
         for rules_item in rules_list:
             validator = nac_validate.validator.Validator(schema, rules_item)
-            if schema and not syntax_validated and validator.schema is not None:
-                validator.validate_syntax([mdata])
-                syntax_validated = True
-            if rules_item:
-                if data_model_loaded is None:
-                    data_model_loaded = load_yaml_files([mdata])
-                    results['data'] = data_model_loaded
-                validator.data = data_model_loaded
-                validator.validate_semantics([mdata])
+            try:
+                if schema and not syntax_validated and validator.schema is not None:
+                    validator.validate_syntax([mdata])
+                    syntax_validated = True
+                if rules_item:
+                    if data_model_loaded is None:
+                        data_model_loaded = load_yaml_files([mdata])
+                        results['data'] = data_model_loaded
+                    validator.data = data_model_loaded
+                    validator.validate_semantics([mdata])
+                iteration_errors = list(validator.errors)
+            except _NacValidationError as validation_exc:
+                iteration_errors = list(getattr(validation_exc, 'errors', None) or [str(validation_exc)])
 
             msg = ""
-            for error in validator.errors:
+            for error in iteration_errors:
                 msg += error + "\n"
 
             if msg:
