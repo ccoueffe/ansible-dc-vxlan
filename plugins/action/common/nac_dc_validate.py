@@ -35,6 +35,16 @@ except ImportError as imp_yaml_exc:
 else:
     NAC_YAML_IMPORT_ERROR = None
 
+
+def _load_model_files(paths):
+    # nac-yaml >= 2.0.0 accepts typ='safe' (C-accelerated safe loader; ~5x faster
+    # model load on large fabrics when ruamel.yaml.clib is present). nac-yaml < 2.0.0
+    # has no typ kwarg, so fall back to the default loader to stay backward-compatible.
+    try:
+        return load_yaml_files(paths, typ='safe')
+    except TypeError:
+        return load_yaml_files(paths)
+
 try:
     import nac_validate.validator
     try:
@@ -106,7 +116,7 @@ class ActionModule(ActionBase):
         if rules and task_vars['role_path'] in rules:
             # Load in-memory data model using iac-validate
             # Perform the load in this if block to avoid loading the data model multiple times when custom enhanced rules are provided
-            results['data'] = load_yaml_files([mdata], typ='safe')
+            results['data'] = _load_model_files([mdata])
             data_model_loaded = results['data']
 
             # Introduce common directory to the rules list by default once vrf and network rules are updated
@@ -180,7 +190,7 @@ class ActionModule(ActionBase):
                     syntax_validated = True
                 if rules_item:
                     if data_model_loaded is None:
-                        data_model_loaded = load_yaml_files([mdata], typ='safe')
+                        data_model_loaded = _load_model_files([mdata])
                         results['data'] = data_model_loaded
                     validator.data = data_model_loaded
                     validator.validate_semantics([mdata])
