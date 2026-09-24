@@ -45,6 +45,7 @@ def _load_model_files(paths):
     except TypeError:
         return load_yaml_files(paths)
 
+
 try:
     import nac_validate.validator
     import yamale
@@ -73,8 +74,10 @@ from ansible_collections.cisco.nac_dc_vxlan.plugins.plugin_utils.helper_function
 
 display = Display()
 
+_ValidatorBase = nac_validate.validator.Validator if NAC_VALIDATE_IMPORT_ERROR is None else object
 
-class OptimizedValidator(nac_validate.validator.Validator):
+
+class OptimizedValidator(_ValidatorBase):
 
     def validate_syntax(self, input_paths, strict=True):
         # When the merged data model is already loaded (self.data), validate the
