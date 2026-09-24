@@ -22,6 +22,10 @@
 from __future__ import absolute_import, division, print_function
 
 import yaml
+try:
+    from yaml import CSafeLoader as _SafeLoader, CSafeDumper as _SafeDumper
+except ImportError:
+    from yaml import SafeLoader as _SafeLoader, SafeDumper as _SafeDumper
 import os
 import datetime
 from ansible.utils.display import Display
@@ -161,7 +165,7 @@ class ActionModule(ActionBase):
                 os.remove(output_path)
 
             with open(output_path, 'w', encoding='utf-8') as f:
-                yaml.dump(output_data, f, default_flow_style=False, sort_keys=False)
+                yaml.dump(output_data, f, default_flow_style=False, sort_keys=False, Dumper=_SafeDumper)
         except Exception as e:
             display.warning(f"Failed to write comparison results to {output_path}: {str(e)}")
 
@@ -170,7 +174,7 @@ class ActionModule(ActionBase):
         Load YAML data from a file.
         """
         with open(filename, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f) or []
+            return yaml.load(f, Loader=_SafeLoader) or []
 
     def normalize_omit_placeholders(self, old_items, new_items):
         """

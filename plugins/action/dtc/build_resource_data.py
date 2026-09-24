@@ -54,6 +54,10 @@ import re
 import shutil
 
 import yaml
+try:
+    from yaml import CSafeLoader as _SafeLoader, CSafeDumper as _SafeDumper
+except ImportError:
+    from yaml import SafeLoader as _SafeLoader, SafeDumper as _SafeDumper
 
 from ansible.plugins.action import ActionBase
 from ansible.utils.display import Display
@@ -401,7 +405,7 @@ class ResourceDataBuilder:
         if not os.path.exists(path):
             return []
         with open(path) as f:
-            data = yaml.safe_load(f)
+            data = yaml.load(f, Loader=_SafeLoader)
         return data if data else []
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -495,7 +499,7 @@ class ResourceDataBuilder:
             shutil.copy2(sentinel_file, old_sentinel)
             os.remove(sentinel_file)
             with open(sentinel_file, 'w') as f:
-                f.write(yaml.dump({}, default_flow_style=False, sort_keys=True))
+                f.write(yaml.dump({}, default_flow_style=False, sort_keys=True, Dumper=_SafeDumper))
             if self._run_diff_model_changes(old_sentinel, sentinel_file):
                 if self.check_roles.get('save_previous', False):
                     self.change_flags['changes_detected_msite_overlay'] = True
@@ -519,6 +523,7 @@ class ResourceDataBuilder:
             overlay,
             default_flow_style=False,
             sort_keys=True,
+            Dumper=_SafeDumper,
         )
         with open(sentinel_file, 'w') as f:
             f.write(overlay_content)
@@ -554,7 +559,7 @@ class ResourceDataBuilder:
             return False
         try:
             with open(sentinel_path) as f:
-                prev_data = yaml.safe_load(f)
+                prev_data = yaml.load(f, Loader=_SafeLoader)
             return bool(prev_data.get(key)) if isinstance(prev_data, dict) else False
         except (yaml.YAMLError, IOError):
             return False
@@ -772,7 +777,7 @@ class ResourceDataBuilder:
 
         # Write current
         with open(output_file, 'w') as f:
-            yaml.dump(create_list, f, default_flow_style=False)
+            yaml.dump(create_list, f, default_flow_style=False, Dumper=_SafeDumper)
 
         # Run structural diff only when downstream targeted processing needs it.
         diff_result = None
